@@ -1,0 +1,17 @@
+namespace Events.DTO;
+
+public class EventDto
+{
+    public string EventName { get; set; } = string.Empty;
+    
+    public string Description { get; set; } = string.Empty;
+    
+    public DateTime StartEventTime { get; set; }
+    public DateTime EndventDateTime { get; set; }
+
+    public string adress { get; set; } = string.Empty;
+
+    public string Category { get; set; } = string.Empty;
+    
+    public int MaxEventParticipantNumber { get; set; } 
+}
