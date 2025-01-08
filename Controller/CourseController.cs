@@ -17,7 +17,61 @@ public class CourseController : ControllerBase
     {
         this._context = context;
     }
-    
+
+    [Authorize]
+    [HttpGet("/ActiveAllCourse")]
+    public ActionResult<List<Course>> GetActiveCourse()
+    {
+        try
+        {
+            var courses = _context.Courses
+                .Where(x => x.CourseStatus == "Onaylandı")
+                .ToList();
+            if(courses == null)
+            {
+                return NotFound("Aktif kurs bulunamadı");
+            }
+            return Ok(courses);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error"); 
+        }
+    }
+
+    [Authorize]
+    [HttpGet("/AllCourse")]
+    public ActionResult<List<Course>> GetAllCourse()
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            int id = int.Parse(userIdClaim.Value); 
+            
+            var user = _context.Users.FirstOrDefault(x => x.Id == id);
+
+            if (user == null)
+            {
+                return NotFound("Kullanıcı bulunamadı."); 
+            }
+            
+            var courses = _context.Courses.Where(x => x.UserId == id ).ToList();
+
+            if (courses == null || !courses.Any())
+            {
+                return NotFound("Kullanıcıya ait kurs bulunamadı."); 
+            }
+
+            return Ok(courses);
+
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error");
+        }
+    }
     
     [Authorize]
     [HttpPost]
@@ -42,31 +96,63 @@ public class CourseController : ControllerBase
             CourseDescription = courseDto.CourseDescription,
             StartCourseTime = courseDto.StartCourseTime,
             EndCourseDateTime = courseDto.EndCourseDateTime,
-            UserId = user.Id
+            UserId = user.Id,
+            CourseCity = courseDto.CourseCity,
+            CourseStatus = "Adminden Onay Bekliyor"
                 
             
         };
+        
+        if(user.Role=="Admin")
+        {
+            course.CourseStatus = "Onaylandı";
+        }
+        
         _context.Courses.Add(course);
         _context.SaveChanges();
         return Ok(course);
     }
-    
-    
-    [HttpGet]
-    public ActionResult<List<Event>> GetCouses()
+
+
+
+    [Authorize]
+    [HttpDelete("{CourseId}")]
+
+    public ActionResult<Course> DeleteCourse(int CourseId)
     {
         try
         {
-
-            var course = _context.Courses.ToList();
-
-            if (course == null)
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            int id = int.Parse(userIdClaim.Value);
+            
+            User user = _context.Users.FirstOrDefault(x => x.Id == id);
+            if(user.Role == "Admin")
             {
-                return NotFound("Kurs Bulunmamaktadır.");
-                
+                var AdminDeleteCourses = _context.Courses.FirstOrDefault(x => x.Id == id);
+
+                if (AdminDeleteCourses == null)
+                {
+                    return Ok("kurs bulunamadı");
+                }
+
+                _context.Courses.Remove(AdminDeleteCourses);
+                _context.SaveChanges();
+                return Ok("Kurs silindi");
             }
 
-            return Ok(course);
+            var course = _context.Courses
+                .Where(x => x.UserId == id).ToList();
+            
+            var DeleteCourse = course.FirstOrDefault(x => x.Id == CourseId);
+            if (DeleteCourse == null)
+            {
+                return NotFound("Kurs bulunamadı");
+            }
+            _context.Courses.Remove(DeleteCourse);
+            _context.SaveChanges();
+            return Ok("Kurs silindi");
+
+
 
         }
         catch (Exception e)
@@ -75,6 +161,6 @@ public class CourseController : ControllerBase
             return StatusCode(500, "Internal server error"); 
         }
     }
-    
+
     
 }

@@ -46,12 +46,13 @@ public class EventController: ControllerBase
                 EventName = eventDto.EventName,
                 adress = eventDto.adress,
                 Category = eventDto.Category,
-                EventCreator = user.FirstName, 
                 UserId = user.Id,  
                 MaxEventParticipantNumber = eventDto.MaxEventParticipantNumber, 
                 EventParticipantNumber = 0,
                 CreateEventTime = DateTime.UtcNow,
-                StartEventTime = eventDto.StartEventTime
+                StartEventTime = eventDto.StartEventTime,
+                City = eventDto.City,
+                EventStatus = "Adminden Onay Bekliyor"  //Bunun adminden onaylama panaeli olacak unutma
             };
 
             _context.Events.Add(newEvent);
@@ -67,7 +68,7 @@ public class EventController: ControllerBase
     }
     
     [Authorize]
-    [HttpGet ]
+    [HttpGet("/AllEvents")]
     public ActionResult<List<Event>> GetEvents()
     {
         try
@@ -82,7 +83,7 @@ public class EventController: ControllerBase
                 return NotFound("Kullanıcı bulunamadı."); 
             }
             
-            var events = _context.Events.Where(x => x.UserId == id).ToList();
+            var events = _context.Events.Where(x => x.UserId == id ).ToList();
 
             if (events == null || !events.Any())
             {
@@ -105,8 +106,23 @@ public class EventController: ControllerBase
         try
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            int id = int.Parse(userIdClaim.Value); 
+            int id = int.Parse(userIdClaim.Value);
             
+            User user = _context.Users.FirstOrDefault(x => x.Id == id);
+            if(user.Role == "Admin")
+            {
+                var AdminDeleteEvents = _context.Events.FirstOrDefault(x => x.Id == EventId);
+
+                if (AdminDeleteEvents == null)
+                {
+                    return Ok("etkinlik bulunamadı");
+                }
+
+                _context.Events.Remove(AdminDeleteEvents);
+                _context.SaveChanges();
+
+                return Ok("Silme işlemi başarıyla gerçekleştirildi.");
+            }
             var events = _context.Events.Where(x => x.UserId == id).ToList();
 
             var DeleteEvents = events.FirstOrDefault(x => x.Id == EventId);
@@ -129,21 +145,31 @@ public class EventController: ControllerBase
         }
     }
     
-    //geçmiş etkinlikleri görüntüler
     [Authorize]
-    [HttpGet("status")]
-    public ActionResult<List<Event>> GetEventStatus()
+    [HttpGet("ActiveAllEvents")]
+    public ActionResult<List<Event>> GetEventsStatus()
     {
-        
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        int id = int.Parse(userIdClaim.Value); 
-        
-        var user = _context.Users.FirstOrDefault(x => x.Id == id);
-        var now = DateTime.UtcNow;
-        var PastEvent = _context.Events.Where(e => e.UserId == id && e.EndventDateTime < now).ToList();
-        return Ok(PastEvent);
-        
+        try
+        {
+            // Tüm etkinlikleri sadece EventStatus'u true olanlarla filtrele
+            var events = _context.Events
+                .Where(x => x.EventStatus == "true")  // EventStatus'u "true" olanları al
+                .ToList();
+
+            if (events == null || !events.Any())
+            {
+                return NotFound("Geçerli etkinlik bulunamadı."); 
+            }
+
+            return Ok(events); 
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error"); 
+        }
     }
+
     
     
     

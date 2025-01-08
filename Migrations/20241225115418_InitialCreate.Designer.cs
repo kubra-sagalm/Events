@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Events.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241224193245_FirstMigration")]
-    partial class FirstMigration
+    [Migration("20241225115418_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -38,6 +38,10 @@ namespace Events.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("CourseCategory")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CourseCity")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -69,6 +73,36 @@ namespace Events.Migrations
                     b.ToTable("Courses");
                 });
 
+            modelBuilder.Entity("Events.Models.CourseParticipation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ParticipationTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CourseParticipations");
+                });
+
             modelBuilder.Entity("Events.Models.Event", b =>
                 {
                     b.Property<int>("Id")
@@ -81,16 +115,19 @@ namespace Events.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreateEventTime")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("EndventDateTime")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EventCreator")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("EventName")
                         .IsRequired()
@@ -121,11 +158,17 @@ namespace Events.Migrations
 
             modelBuilder.Entity("Events.Models.EventParticipation", b =>
                 {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
                     b.Property<int>("EventId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
+                    b.Property<DateTime>("ParticipationTime")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -134,7 +177,11 @@ namespace Events.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
+                    b.HasKey("Id");
+
                     b.HasIndex("EventId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("EventParticipations");
                 });
@@ -147,6 +194,9 @@ namespace Events.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Age")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
@@ -155,6 +205,9 @@ namespace Events.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("Gender")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -162,6 +215,9 @@ namespace Events.Migrations
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<long>("PhoneNumber")
+                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
@@ -182,6 +238,25 @@ namespace Events.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Events.Models.CourseParticipation", b =>
+                {
+                    b.HasOne("Events.Models.Course", "Course")
+                        .WithMany("CourseParticipations")
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Events.Models.User", "User")
+                        .WithMany("CourseParticipations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Events.Models.Event", b =>
                 {
                     b.HasOne("Events.Models.User", "User")
@@ -196,17 +271,39 @@ namespace Events.Migrations
             modelBuilder.Entity("Events.Models.EventParticipation", b =>
                 {
                     b.HasOne("Events.Models.Event", "Event")
-                        .WithMany()
+                        .WithMany("EventParticipations")
                         .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Events.Models.User", "User")
+                        .WithMany("EventParticipations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Event");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Events.Models.Course", b =>
+                {
+                    b.Navigation("CourseParticipations");
+                });
+
+            modelBuilder.Entity("Events.Models.Event", b =>
+                {
+                    b.Navigation("EventParticipations");
                 });
 
             modelBuilder.Entity("Events.Models.User", b =>
                 {
+                    b.Navigation("CourseParticipations");
+
                     b.Navigation("Courses");
+
+                    b.Navigation("EventParticipations");
 
                     b.Navigation("Events");
                 });

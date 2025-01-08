@@ -13,4 +13,7 @@ public class CourseDto
     public string CourseAdress { get; set; } = string.Empty;
 
     public string CourseCategory { get; set; } = string.Empty;
+    
+    public string CourseCity { get; set; } = string.Empty;
+
 }

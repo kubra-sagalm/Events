@@ -11295,11 +11295,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/kubrasaglam/Desktop/Events/Events/Events.csproj",
+      "projectUniqueName": "/Users/kubrasaglam/RiderProjects/Events/Events.csproj",
       "projectName": "Events",
-      "projectPath": "/Users/kubrasaglam/Desktop/Events/Events/Events.csproj",
+      "projectPath": "/Users/kubrasaglam/RiderProjects/Events/Events.csproj",
       "packagesPath": "/Users/kubrasaglam/.nuget/packages/",
-      "outputPath": "/Users/kubrasaglam/Desktop/Events/Events/obj/",
+      "outputPath": "/Users/kubrasaglam/RiderProjects/Events/obj/",
       "projectStyle": "PackageReference",
       "UsingMicrosoftNETSdk": false,
       "configFilePaths": [

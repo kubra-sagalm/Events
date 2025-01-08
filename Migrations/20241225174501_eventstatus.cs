@@ -1,29 +1,28 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Events.Migrations
 {
     /// <inheritdoc />
-    public partial class MigrationName : Migration
+    public partial class eventstatus : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<DateTime>(
-                name: "CreateEventTime",
+            migrationBuilder.AddColumn<bool>(
+                name: "EventStatus",
                 table: "Events",
-                type: "timestamp with time zone",
+                type: "boolean",
                 nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                defaultValue: false);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "CreateEventTime",
+                name: "EventStatus",
                 table: "Events");
         }
     }

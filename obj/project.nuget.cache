@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "TSKrRNcZOh0=",
+  "dgSpecHash": "sTZjDWskQxs=",
   "success": true,
-  "projectFilePath": "/Users/kubrasaglam/Desktop/Events/Events/Events.csproj",
+  "projectFilePath": "/Users/kubrasaglam/RiderProjects/Events/Events.csproj",
   "expectedPackageFiles": [
     "/Users/kubrasaglam/.nuget/packages/azure.core/1.38.0/azure.core.1.38.0.nupkg.sha512",
     "/Users/kubrasaglam/.nuget/packages/azure.identity/1.11.4/azure.identity.1.11.4.nupkg.sha512",

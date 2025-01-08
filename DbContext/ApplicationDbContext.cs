@@ -11,6 +11,8 @@ namespace Events.DbContext
         public DbSet<Course> Courses { get; set; }
         
         public DbSet<EventParticipation> EventParticipations { get; set; }
+        
+        public DbSet<CourseParticipation> CourseParticipations { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) 
         { 
@@ -36,7 +38,28 @@ namespace Events.DbContext
                 .WithMany(c => c.Courses)
                 .HasForeignKey(c => c.UserId);
             
-            modelBuilder.Entity<EventParticipation>().HasNoKey(); 
+            
+            // EventParticipation ilişkisini yapılandır
+            modelBuilder.Entity<EventParticipation>()
+                .HasOne(ep => ep.User)
+                .WithMany(u => u.EventParticipations)
+                .HasForeignKey(ep => ep.UserId);
+
+            modelBuilder.Entity<EventParticipation>()
+                .HasOne(ep => ep.Event)
+                .WithMany(e => e.EventParticipations)
+                .HasForeignKey(ep => ep.EventId);
+            
+            // CourseParticipation ilişkisini yapılandır
+            modelBuilder.Entity<CourseParticipation>()
+                .HasOne(cp => cp.User)
+                .WithMany(u => u.CourseParticipations)
+                .HasForeignKey(cp => cp.UserId);
+
+            modelBuilder.Entity<CourseParticipation>()
+                .HasOne(cp => cp.Course)
+                .WithMany(c => c.CourseParticipations)
+                .HasForeignKey(cp => cp.CourseId);
 
             
         }

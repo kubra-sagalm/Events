@@ -14,4 +14,6 @@ public class EventDto
     public string Category { get; set; } = string.Empty;
     
     public int MaxEventParticipantNumber { get; set; } 
+    
+    public string City { get; set; } = string.Empty;
 }

@@ -30,7 +30,11 @@ public class UserController : ControllerBase
                 Email = userDto.Email,
                 LastName = userDto.LastName,
                 // Parolayı hash'le
-                Password = BCrypt.Net.BCrypt.HashPassword(userDto.Password)
+                Password = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+                Age = userDto.Age,
+                PhoneNumber = userDto.PhoneNumber,
+                Gender = userDto.Gender,  //true kadın false erkek
+                Role = "Admin"
             };
 
            
