@@ -63,8 +63,6 @@ namespace Events.DbContext
 
             
         }
-
         
-      
     }
 }

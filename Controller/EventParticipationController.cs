@@ -25,7 +25,6 @@ public class EventParticipationController: ControllerBase
     {
         try
         {
-            // Kullanıcının kimliğini al
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
             {
@@ -34,14 +33,12 @@ public class EventParticipationController: ControllerBase
 
             int userId = int.Parse(userIdClaim.Value);
 
-            // Etkinliği bul
             var eventToParticipate = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
             if (eventToParticipate == null)
             {
                 return NotFound("Etkinlik bulunamadı.");
             }
-
-            // Kullanıcının zaten bu etkinliğe katılıp katılmadığını kontrol et
+            
             var existingParticipation = await _context.EventParticipations
                 .FirstOrDefaultAsync(ep => ep.UserId == userId && ep.EventId == eventId);
 
@@ -50,7 +47,6 @@ public class EventParticipationController: ControllerBase
                 return BadRequest("Bu etkinlikte zaten katılımınız var.");
             }
 
-            // Yeni katılım isteği oluştur
             var participation = new EventParticipation
             {
                 UserId = userId,
@@ -77,7 +73,6 @@ public class EventParticipationController: ControllerBase
     {
         try
         {
-            // Kullanıcının kimliğini al
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
             {
@@ -86,24 +81,30 @@ public class EventParticipationController: ControllerBase
 
             int userId = int.Parse(userIdClaim.Value);
 
-            // Katılım talebini bul
             var participation = await _context.EventParticipations
-                .Include(ep => ep.Event)  // Event bilgilerini dahil et
+                .Include(ep => ep.Event)  
                 .FirstOrDefaultAsync(ep => ep.Id == participationId);
+            
+            var eventToCheck = await _context.Events.FirstOrDefaultAsync(e => e.Id == participation.EventId);
 
             if (participation == null)
             {
                 return NotFound("Katılım talebi bulunamadı.");
             }
 
-            // Etkinlik sahibi mi kontrol et
             if (participation.Event.UserId != userId)
             {
                 return Unauthorized("Bu etkinliğin sahibi değilsiniz.");
             }
+            
+            if (eventToCheck.EventParticipantNumber >= eventToCheck.MaxEventParticipantNumber)
+            {
+                return BadRequest("Bu etkinlik için maksimum katılımcı sayısına ulaşıldı.");
+            }
 
-            // Katılım talebini onayla
+
             participation.Status = "Onaylı";  // Onaylanmış olarak güncelleniyor
+            eventToCheck.EventParticipantNumber += 1;  // Etkinlik katılımcı sayısı bir arttırılıyor
             await _context.SaveChangesAsync();
 
             return Ok("Katılım isteği onaylandı.");
@@ -122,7 +123,6 @@ public class EventParticipationController: ControllerBase
     {
         try
         {
-            // Kullanıcının kimliğini al
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
             {
@@ -131,20 +131,17 @@ public class EventParticipationController: ControllerBase
 
             int userId = int.Parse(userIdClaim.Value);
 
-            // Etkinliği bul
             var eventToCheck = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
             if (eventToCheck == null)
             {
                 return NotFound("Etkinlik bulunamadı.");
             }
 
-            // Etkinliği oluşturan kişi mi kontrol et
             if (eventToCheck.UserId != userId)
             {
                 return Unauthorized("Bu etkinliğin sahibi değilsiniz.");
             }
 
-            // Etkinlikteki katılım taleplerini getir
             var participations = await _context.EventParticipations
                 .Where(ep => ep.EventId == eventId)
                 .ToListAsync();
@@ -162,9 +159,5 @@ public class EventParticipationController: ControllerBase
             return StatusCode(500, "Internal server error");
         }
     }
-
-
-    
-    
     
 }

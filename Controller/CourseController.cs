@@ -17,6 +17,8 @@ public class CourseController : ControllerBase
     {
         this._context = context;
     }
+    
+    // Aktif tüm kurslar listelenir
 
     [Authorize]
     [HttpGet("/ActiveAllCourse")]
@@ -39,6 +41,9 @@ public class CourseController : ControllerBase
             return StatusCode(500, "Internal server error"); 
         }
     }
+    
+    
+    // kullanıcının kendi açtığı tüm kurslar listelenir
 
     [Authorize]
     [HttpGet("/AllCourse")]
@@ -161,6 +166,9 @@ public class CourseController : ControllerBase
             return StatusCode(500, "Internal server error"); 
         }
     }
+    
+    
+    
 
     
 }

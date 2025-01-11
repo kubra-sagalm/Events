@@ -67,6 +67,7 @@ public class EventController: ControllerBase
         }
     }
     
+    //kullanıcının kendi etkinliklerini listeleme
     [Authorize]
     [HttpGet("/AllEvents")]
     public ActionResult<List<Event>> GetEvents()
@@ -151,9 +152,8 @@ public class EventController: ControllerBase
     {
         try
         {
-            // Tüm etkinlikleri sadece EventStatus'u true olanlarla filtrele
             var events = _context.Events
-                .Where(x => x.EventStatus == "true")  // EventStatus'u "true" olanları al
+                .Where(x => x.EventStatus == "Onaylandı")  // EventStatus'u "Onaylandı" olanları al
                 .ToList();
 
             if (events == null || !events.Any())
@@ -169,7 +169,68 @@ public class EventController: ControllerBase
             return StatusCode(500, "Internal server error"); 
         }
     }
+    
+    //Kullanıcının katıldığı etkinlikler listelenir
+    [Authorize]
+    [HttpGet("MyEventParticipations")]
+    public ActionResult<List<Event>> MyEventParticipations()
+    {
+        try
+        {
+            var MyEventParticipations = _context.EventParticipations
+                .Where(x => x.UserId == x.UserId && x.Status == "Onaylı")
+                .Select(x => x.Event)
+                .ToList();
+            return (MyEventParticipations);
 
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    [Authorize]
+    [HttpPatch]
+    public ActionResult<Event> UpdateEvent(int EventId, EventDto eventDto)
+    {
+        try
+        {
+            var updateEvent = _context.Events.FirstOrDefault(x => x.Id == EventId);
+            if (updateEvent == null)
+            {
+                return NotFound("Etkinlik bulunamadı.");
+            }
+            if(updateEvent.EventStatus == "Onaylandı")
+            {
+                return BadRequest("Etkinlik onaylandığı için güncelleme yapılamaz.");
+            }
+            if(updateEvent.UserId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
+            {
+                return Unauthorized("Bu işlemi yapmaya yetkiniz yok.");
+            }
+            
+            updateEvent.Description = eventDto.Description;
+            updateEvent.EndventDateTime = eventDto.EndventDateTime;
+            updateEvent.EventName = eventDto.EventName;
+            updateEvent.adress = eventDto.adress;
+            updateEvent.Category = eventDto.Category;
+            updateEvent.MaxEventParticipantNumber = eventDto.MaxEventParticipantNumber;
+            updateEvent.StartEventTime = eventDto.StartEventTime;
+            updateEvent.City = eventDto.City;
+            updateEvent.CreateEventTime = DateTime.UtcNow;
+            _context.Update(updateEvent);
+            _context.SaveChanges();
+            return Ok(updateEvent);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+            
     
     
     

@@ -34,7 +34,7 @@ public class UserController : ControllerBase
                 Age = userDto.Age,
                 PhoneNumber = userDto.PhoneNumber,
                 Gender = userDto.Gender,  //true kadın false erkek
-                Role = "Admin"
+                Role = "User"
             };
 
            
