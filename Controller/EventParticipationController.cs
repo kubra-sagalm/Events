@@ -52,7 +52,7 @@ public class EventParticipationController: ControllerBase
                 UserId = userId,
                 EventId = eventId,
                 ParticipationTime = DateTime.UtcNow,
-                Status = "Bekliyor"  // Varsayılan olarak "Bekliyor" durumu
+                Status = "Adminden Onay Bekliyor"  // Varsayılan olarak "Bekliyor" durumu
             };
 
             _context.EventParticipations.Add(participation);

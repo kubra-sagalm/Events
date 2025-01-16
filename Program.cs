@@ -4,8 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
 
 
 // 1. PostgreSQL Bağlantısını Yapılandır
@@ -32,6 +35,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+    c.OperationFilter<FileUploadOperationFilter>();
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
@@ -55,7 +59,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-
 
 // 4. CORS Politikası (Swagger ve Frontend İçin)
 builder.Services.AddCors(options =>
@@ -81,10 +84,44 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection(); // HTTPS yönlendirmesi
+
+app.UseHttpsRedirection(); // HTTPS yönlendirme
+app.UseStaticFiles(); // Statik dosyaları etkinleştirme (wwwroot)
 app.UseCors("AllowAll"); // CORS kullanımı
 app.UseAuthentication(); // JWT doğrulama
 app.UseAuthorization();  // Yetkilendirme
 app.MapControllers();    // Controller'ları haritalandır
+app.Run();
 
-app.Run(); // Uygulamayı başlat
+
+public class FileUploadOperationFilter : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        var fileParameters = context.MethodInfo.GetParameters()
+            .Where(p => p.ParameterType == typeof(IFormFile));
+
+        if (!fileParameters.Any())
+            return;
+
+        operation.Parameters.Clear();
+
+        operation.RequestBody = new OpenApiRequestBody
+        {
+            Content = new Dictionary<string, OpenApiMediaType>
+            {
+                ["multipart/form-data"] = new OpenApiMediaType
+                {
+                    Schema = new OpenApiSchema
+                    {
+                        Type = "object",
+                        Properties = new Dictionary<string, OpenApiSchema>
+                        {
+                            ["photo"] = new OpenApiSchema { Type = "string", Format = "binary" }
+                        }
+                    }
+                }
+            }
+        };
+    }
+}

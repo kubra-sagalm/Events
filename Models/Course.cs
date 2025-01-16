@@ -24,6 +24,8 @@ public class Course
     
     public string CourseStatus { get; set; } = string.Empty; // "Aktif", "Pasif", "Tamamlandı"
     
+    public string? PhotoUrl { get; set; } // Fotoğraf
+    
     public int UserId { get; set; }
     
     [JsonIgnore]

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace Events.DTO;
 
 public class CourseDto
@@ -16,4 +18,6 @@ public class CourseDto
     
     public string CourseCity { get; set; } = string.Empty;
 
+    [FromForm]
+    public IFormFile Photo { get; set; } // Fotoğraf dosyası için alan
 }

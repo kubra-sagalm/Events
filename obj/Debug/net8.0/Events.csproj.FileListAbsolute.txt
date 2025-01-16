@@ -367,3 +367,4 @@
 /Users/kubrasaglam/RiderProjects/Events/obj/Debug/net8.0/Events.pdb
 /Users/kubrasaglam/RiderProjects/Events/obj/Debug/net8.0/Events.genruntimeconfig.cache
 /Users/kubrasaglam/RiderProjects/Events/obj/Debug/net8.0/ref/Events.dll
+/Users/kubrasaglam/RiderProjects/Events/bin/Debug/net8.0/Events.staticwebassets.runtime.json

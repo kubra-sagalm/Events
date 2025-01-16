@@ -20,4 +20,5 @@ public class EventParticipation
     
     [JsonIgnore]
     public virtual Event Event { get; set; }
+    
 }

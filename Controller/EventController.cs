@@ -26,80 +26,140 @@ public class EventController: ControllerBase
     {
         try
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier); 
-            if (userIdClaim == null)
-            {
-                return Unauthorized("Kullanıcı bilgisi bulunamadı.");
-            }
+         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier); 
+          if (userIdClaim == null)
+          {
+            return Unauthorized("Kullanıcı bilgisi bulunamadı.");
+         }
 
-            int userId = int.Parse(userIdClaim.Value);  
-            
+         int userId = int.Parse(userIdClaim.Value);  
+        
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null)
-            {
-                return Unauthorized("Geçersiz kullanıcı.");
-            }
-            var newEvent = new Event
-            {
-                Description = eventDto.Description,
-                EndventDateTime = eventDto.EndventDateTime,
-                EventName = eventDto.EventName,
-                adress = eventDto.adress,
-                Category = eventDto.Category,
-                UserId = user.Id,  
-                MaxEventParticipantNumber = eventDto.MaxEventParticipantNumber, 
-                EventParticipantNumber = 0,
-                CreateEventTime = DateTime.UtcNow,
-                StartEventTime = eventDto.StartEventTime,
-                City = eventDto.City,
-                EventStatus = "Adminden Onay Bekliyor"  //Bunun adminden onaylama panaeli olacak unutma
-            };
+         {
+             return Unauthorized("Geçersiz kullanıcı.");
+         }
+          string photoPath = null;
+          
+          // Fotoğraf yükleme işlemi
+          if (eventDto.Photo != null && eventDto.Photo.Length > 0)
+          {
+              var uploadsFolder = Path.Combine("wwwroot", "event-photos");
+              if (!Directory.Exists(uploadsFolder))
+             {
+                Directory.CreateDirectory(uploadsFolder);
+             }
+
+             var uniqueFileName = Guid.NewGuid().ToString() + "_" + eventDto.Photo.FileName;
+             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+             using (var fileStream = new FileStream(filePath, FileMode.Create))
+             {
+                 await eventDto.Photo.CopyToAsync(fileStream);
+             }
+
+             photoPath = $"/event-photos/{uniqueFileName}";
+         }
+
+         // Tarihleri UTC'ye dönüştür
+         var startEventTimeUtc = DateTime.SpecifyKind(eventDto.StartEventTime, DateTimeKind.Utc);
+         var endventDateTimeUtc = DateTime.SpecifyKind(eventDto.EndventDateTime, DateTimeKind.Utc);
+
+          var newEvent = new Event
+          {
+            Description = eventDto.Description,
+            EndventDateTime = endventDateTimeUtc,
+            EventName = eventDto.EventName,
+            adress = eventDto.adress,
+            Category = eventDto.Category,
+            UserId = user.Id,
+            MaxEventParticipantNumber = eventDto.MaxEventParticipantNumber,
+            EventParticipantNumber = 0,
+            CreateEventTime = DateTime.UtcNow, // Zaten UTC
+            StartEventTime = startEventTimeUtc,
+            City = eventDto.City,
+            EventStatus = user.Role == "Admin" ? "Onaylandı" : "Adminden Onay Bekliyor",
+            PhotoUrl = photoPath
+        };
 
             _context.Events.Add(newEvent);
             await _context.SaveChangesAsync(); 
 
-            return CreatedAtAction(nameof(CreateEvent), new { id = newEvent.Id }, newEvent);
+         return CreatedAtAction(nameof(CreateEvent), new { id = newEvent.Id }, newEvent);
+      }
+      catch (Exception e)
+      {
+          Console.WriteLine($"Hata oluştu: {e.Message}");
+          return StatusCode(500, "Internal server error");
         }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Hata oluştu: {e.Message}");
-            return StatusCode(500, "Internal server error");
-        }
-    }
+}
     
-    //kullanıcının kendi etkinliklerini listeleme
-    [Authorize]
-    [HttpGet("/AllEvents")]
-    public ActionResult<List<Event>> GetEvents()
+   [Authorize]
+[HttpGet("/AllEvents")]
+public ActionResult<List<object>> GetEvents()
+{
+    try
     {
-        try
+        // Kullanıcının kimlik bilgisinden ID alınıyor
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            int id = int.Parse(userIdClaim.Value); 
-            
-            var user = _context.Users.FirstOrDefault(x => x.Id == id);
-
-            if (user == null)
-            {
-                return NotFound("Kullanıcı bulunamadı."); 
-            }
-            
-            var events = _context.Events.Where(x => x.UserId == id ).ToList();
-
-            if (events == null || !events.Any())
-            {
-                return NotFound("Kullanıcıya ait event bulunamadı."); 
-            }
-
-            return Ok(events); 
+            return Unauthorized("Kullanıcı kimliği bulunamadı.");
         }
-        catch (Exception e)
+
+        int id;
+        if (!int.TryParse(userIdClaim.Value, out id))
         {
-            Console.WriteLine($"Hata oluştu: {e.Message}");
-            return StatusCode(500, "Internal server error"); 
+            return BadRequest("Geçersiz kullanıcı ID'si.");
         }
+
+        // Kullanıcı kontrolü
+        var user = _context.Users.FirstOrDefault(x => x.Id == id);
+        if (user == null)
+        {
+            return NotFound("Kullanıcı bulunamadı.");
+        }
+
+        // Kullanıcının etkinlikleri
+        var events = _context.Events
+            .Where(x => x.UserId == id)
+            .Select(e => new
+            {
+                Id = e.Id,
+                EventName = e.EventName,
+                Description = e.Description,
+                StartEventTime = e.StartEventTime,
+                EndEventTime = e.EndventDateTime,
+                Adress = e.adress,
+                City = e.City,
+                Category = e.Category,
+                EventParticipantNumber = e.EventParticipantNumber,
+                MaxEventParticipantNumber = e.MaxEventParticipantNumber,
+                EventStatus = e.EventStatus,
+                PhotoUrl = string.IsNullOrEmpty(e.PhotoUrl)
+                    ? "https://dummyimage.com/600x400/cccccc/ffffff&text=No+Image" // Varsayılan bir görsel döner
+                    : $"http://localhost:5287{e.PhotoUrl}" // Tam URL formatında döner
+            })
+            .ToList();
+
+        // Kullanıcıya ait etkinlik yoksa
+        if (!events.Any())
+        {
+            return NotFound("Kullanıcıya ait etkinlik bulunamadı.");
+        }
+
+        return Ok(events);
     }
-    
+    catch (Exception e)
+    {
+        // Hata loglama ve 500 döndürme
+        Console.WriteLine($"Hata oluştu: {e.Message}");
+        return StatusCode(500, "Internal server error");
+    }
+}
+
+
+
     [Authorize]
     [HttpDelete("Event/Delete/{EventId}")]
     public ActionResult<Event> DeleteEvent(int EventId)
@@ -170,26 +230,61 @@ public class EventController: ControllerBase
         }
     }
     
-    //Kullanıcının katıldığı etkinlikler listelenir
-    [Authorize]
-    [HttpGet("MyEventParticipations")]
-    public ActionResult<List<Event>> MyEventParticipations()
+[Authorize]
+[HttpGet("MyEventParticipations")]
+public ActionResult<List<object>> MyEventParticipations()
+{
+    try
     {
-        try
-        {
-            var MyEventParticipations = _context.EventParticipations
-                .Where(x => x.UserId == x.UserId && x.Status == "Onaylı")
-                .Select(x => x.Event)
-                .ToList();
-            return (MyEventParticipations);
+        // Kullanıcının kimlik bilgisinden UserId alınıyor
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-        }
-        catch (Exception e)
+        if (string.IsNullOrEmpty(userIdClaim))
         {
-            Console.WriteLine($"Hata oluştu: {e.Message}");
-            return StatusCode(500, "Internal server error");
+            return Unauthorized("Kullanıcı kimliği bulunamadı.");
         }
+
+        // userId'yi int'e dönüştür
+        if (!int.TryParse(userIdClaim, out int userId))
+        {
+            return BadRequest("Kullanıcı kimliği geçersiz.");
+        }
+
+        // Sisteme giriş yapan kullanıcıya ait etkinlik katılımlarını getir
+        var myEventParticipations = _context.EventParticipations
+            .Where(x => x.UserId == userId) // Kullanıcıya ait katılımlar
+            .Select(x => new
+            {
+                Event = new
+                {
+                    Id = x.Event.Id,                  // Etkinlik ID'si
+                    EventName = x.Event.EventName,    // Etkinlik adı
+                    Description = x.Event.Description, // Etkinlik açıklaması
+                    StartEventTime = x.Event.StartEventTime, // Başlangıç tarihi
+                    EndEventTime = x.Event.EndventDateTime,     // Bitiş tarihi
+                    Adress = x.Event.adress,          // Adres
+                    City = x.Event.City,              // Şehir
+                    Category = x.Event.Category,      // Kategori
+                    EventStatus = x.Event.EventStatus,// Etkinlik durumu
+                    EventParticipantNumber = x.Event.EventParticipantNumber, // Katılımcı sayısı
+                    MaxEventParticipantNumber = x.Event.MaxEventParticipantNumber, // Maksimum katılımcı
+                    PhotoUrl = string.IsNullOrEmpty(x.Event.PhotoUrl)
+                        ? "https://dummyimage.com/600x400/cccccc/ffffff&text=No+Image" // Varsayılan görsel
+                        : $"http://localhost:5287{x.Event.PhotoUrl}" // Tam URL formatında döner
+                },
+                Status = x.Status // Durum bilgisi: Onaylandı, Reddedildi, Bekliyor
+            })
+            .ToList<object>(); // Türü açıkça belirtiliyor
+
+        return Ok(myEventParticipations);
     }
+    catch (Exception e)
+    {
+        Console.WriteLine($"Hata oluştu: {e.Message}");
+        return StatusCode(500, "Internal server error");
+    }
+}
+
 
     [Authorize]
     [HttpPatch]

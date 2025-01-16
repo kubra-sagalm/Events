@@ -61,6 +61,9 @@ namespace Events.Migrations
                     b.Property<DateTime>("EndCourseDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("StartCourseTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -144,6 +147,9 @@ namespace Events.Migrations
                     b.Property<int>("MaxEventParticipantNumber")
                         .HasColumnType("integer");
 
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("StartEventTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -223,6 +229,9 @@ namespace Events.Migrations
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProfilePhotoPath")
                         .HasColumnType("text");
 
                     b.Property<string>("Role")

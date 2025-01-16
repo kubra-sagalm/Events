@@ -25,6 +25,8 @@ public class Event
     
     public int EventParticipantNumber { get; set; }
     
+    public string? PhotoUrl { get; set; } // Fotoğraf
+    
     public string EventStatus { get; set; } = string.Empty; // "Aktif", "Pasif", "Tamamlandı"
     public int UserId { get; set; }
     [JsonIgnore]

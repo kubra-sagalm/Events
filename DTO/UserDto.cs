@@ -15,6 +15,8 @@ public class UserDto
     public string PhoneNumber { get; set; }  = string.Empty;
     
     public Boolean Gender { get; set; }
+    
+    public string? photoPath { get; set; }
 
     
 }

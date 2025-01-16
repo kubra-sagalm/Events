@@ -32,4 +32,5 @@ public class User
     public ICollection<CourseParticipation> CourseParticipations { get; set; }
     
     public ICollection<EventParticipation> EventParticipations { get; set; }
+    public string? ProfilePhotoPath { get; set; }
 }
