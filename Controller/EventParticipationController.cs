@@ -67,6 +67,54 @@ public class EventParticipationController: ControllerBase
         }
     }
     
+    
+    [Authorize]
+    [HttpPost("leave")]
+    public async Task<ActionResult> LeaveEvent(int eventId)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                return Unauthorized("Kullanıcı bilgisi bulunamadı.");
+            }
+
+            int userId = int.Parse(userIdClaim.Value);
+
+            var eventToLeave = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+            if (eventToLeave == null)
+            {
+                return NotFound("Etkinlik bulunamadı.");
+            }
+
+            // Etkinlik tarihi geçmiş mi kontrol et
+            if (eventToLeave.EndventDateTime< DateTime.UtcNow)
+            {
+                return BadRequest("Etkinlik tarihi geçtiği için çıkış yapılamaz.");
+            }
+
+            var participation = await _context.EventParticipations
+                .FirstOrDefaultAsync(ep => ep.UserId == userId && ep.EventId == eventId);
+
+            if (participation == null)
+            {
+                return BadRequest("Bu etkinlikte herhangi bir katılımınız bulunmamaktadır.");
+            }
+
+            // Katılımı kaldır
+            _context.EventParticipations.Remove(participation);
+            await _context.SaveChangesAsync();
+
+            return Ok("Etkinlikten başarıyla çıkış yapıldı.");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
     [Authorize]
     [HttpPatch("approve-participation/{participationId}")]
     public async Task<ActionResult> ApproveParticipation(int participationId)
@@ -159,5 +207,7 @@ public class EventParticipationController: ControllerBase
             return StatusCode(500, "Internal server error");
         }
     }
+    
+    
     
 }

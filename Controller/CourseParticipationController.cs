@@ -67,6 +67,39 @@ public class CourseParticipationController: ControllerBase
         
     }
     
+    
+    [Authorize]
+    [HttpDelete]
+    public ActionResult DeleteCourseParticipationRequest(int courseId)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                return Unauthorized("Kullanıcı bilgisi bulunamadı.");
+            }
+            int userId = int.Parse(userIdClaim.Value);
+
+            var participation = _context.CourseParticipations
+                .FirstOrDefault(cp => cp.UserId == userId && cp.CourseId == courseId);
+        
+            if (participation == null)
+            {
+                return NotFound("Silinecek kurs katılım isteği bulunamadı.");
+            }
+
+            _context.CourseParticipations.Remove(participation);
+            _context.SaveChanges();
+
+            return Ok("Kurs katılım isteği başarıyla silindi.");
+        }
+        catch (Exception e)
+        {
+            return BadRequest($"Bir hata oluştu: {e.Message}");
+        }
+    }
+
     //Kurs sahibi istği onaylar 
     [Authorize]
     [HttpPost("Approve")]

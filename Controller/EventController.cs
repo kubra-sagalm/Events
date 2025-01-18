@@ -326,7 +326,45 @@ public ActionResult<List<object>> MyEventParticipations()
         }
     }
             
-    
+    [Authorize]
+    [HttpPost("cancel")]
+    public async Task<ActionResult> CancelEvent(int eventId)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                return Unauthorized("Kullanıcı bilgisi bulunamadı.");
+            }
+
+            int userId = int.Parse(userIdClaim.Value);
+
+            var eventToCancel = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+            if (eventToCancel == null)
+            {
+                return NotFound("Etkinlik bulunamadı.");
+            }
+
+            // Kullanıcının etkinliği iptal etme yetkisi var mı kontrol et
+            if (eventToCancel.UserId != userId)
+            {
+                return Forbid("Bu etkinliği iptal etme yetkiniz yok.");
+            }
+
+            // Etkinlik durumu "İptal Edildi" olarak güncelle
+            eventToCancel.EventStatus = "İptal Edildi";
+            await _context.SaveChangesAsync();
+
+            return Ok("Etkinlik başarıyla iptal edildi.");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
     
     
     
