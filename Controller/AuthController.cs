@@ -20,11 +20,10 @@ namespace Events.Controller
             _configuration = configuration;
             _context = context;
         }
-
+        
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginModel model)
         {
-            
             // Kullanıcıyı veritabanından e-posta ile sorgula
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == model.Email);
@@ -45,7 +44,8 @@ namespace Events.Controller
             var claims = new[]
             {
                 new Claim(ClaimTypes.Name, user.Email), // Kullanıcı e-postası
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()) // Kullanıcı ID'si
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // Kullanıcı ID'si
+                new Claim(ClaimTypes.Role, user.Role) // Kullanıcının rolü
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
@@ -57,8 +57,14 @@ namespace Events.Controller
                 expires: DateTime.Now.AddMinutes(30), // Token geçerlilik süresi
                 signingCredentials: creds);
 
-            return Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
+            // JWT token ve rol bilgisi döndür
+            return Ok(new
+            {
+                token = new JwtSecurityTokenHandler().WriteToken(token),
+                role = user.Role // Kullanıcının rolü
+            });
         }
+
     }
 
     // Login Model

@@ -27,21 +27,31 @@ public class CourseController : ControllerBase
     {
         try
         {
+            // Kullanıcının kimliğini al
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // Kursları al
             var courses = _context.Courses
-                .Where(x => x.CourseStatus == "Onaylandı")
+                .Where(course => course.CourseStatus == "Onaylandı" && // Sadece onaylanmış kurslar
+                                 !_context.CourseParticipations // Kullanıcının ilişkili olduğu kursları hariç tut
+                                     .Where(p => p.UserId == userId) // Kullanıcıya ait katılımlar
+                                     .Any(p => p.CourseId == course.Id)) // Kullanıcının katıldığı kursları hariç tut
                 .ToList();
-            if(courses == null)
+
+            if (courses == null || !courses.Any())
             {
-                return NotFound("Aktif kurs bulunamadı");
+                return NotFound("Aktif kurs bulunamadı.");
             }
+
             return Ok(courses);
         }
         catch (Exception e)
         {
             Console.WriteLine($"Hata oluştu: {e.Message}");
-            return StatusCode(500, "Internal server error"); 
+            return StatusCode(500, "Internal server error");
         }
     }
+
     
     
     // kullanıcının kendi açtığı tüm kurslar listelenir
@@ -284,6 +294,86 @@ public ActionResult<List<object>> GetMyCourseParticipations()
             return StatusCode(500, "Internal server error"); 
         }
     }
+    [Authorize]
+    [HttpPost("{id}/cancel")]
+    public async Task<IActionResult> CancelCourse(int id)
+    {
+        var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == id);
+        if (course == null)
+        {
+            return NotFound("Kurs bulunamadı.");
+        }
+
+        // İptal durumunu güncelle
+        course.CourseStatus = "İptal Edildi";
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Kurs başarıyla iptal edildi." });
+    }
+    [Authorize]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateCourse(int id, [FromForm] CourseDto courseDto)
+    {
+        var course = await _context.Courses.FindAsync(id);
+        if (course == null)
+        {
+            return NotFound("Kurs bulunamadı");
+        }
+
+        // Kurs bilgilerini güncelle
+        course.CourseName = courseDto.CourseName;
+        course.CourseCategory = courseDto.CourseCategory;
+        course.CourseAdress = courseDto.CourseAdress;
+        course.CourseCity = courseDto.CourseCity;
+        course.CourseDescription = courseDto.CourseDescription;
+
+        // Fotoğraf güncellemesi
+        if (courseDto.Photo != null)
+        {
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            var uniqueFileName = Guid.NewGuid().ToString() + "_" + courseDto.Photo.FileName;
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await courseDto.Photo.CopyToAsync(stream);
+            }
+
+            // Eski fotoğrafı sil
+            if (!string.IsNullOrEmpty(course.PhotoUrl))
+            {
+                var oldPhotoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", course.PhotoUrl);
+                if (System.IO.File.Exists(oldPhotoPath))
+                {
+                    System.IO.File.Delete(oldPhotoPath);
+                }
+            }
+
+            // Yeni fotoğraf yolunu kaydet
+            course.PhotoUrl = $"/uploads/{uniqueFileName}"; // Yolu düzelt
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(course);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetCourse(int id)
+    {
+        var course = await _context.Courses.FindAsync(id);  // Kursu ID'ye göre al
+        if (course == null)
+        {
+            return NotFound("Kurs bulunamadı.");
+        }
+        return Ok(course);  // Kurs bilgilerini geri gönder
+    }
+
     
     
     

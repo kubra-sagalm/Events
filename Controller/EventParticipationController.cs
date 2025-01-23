@@ -163,6 +163,52 @@ public class EventParticipationController: ControllerBase
             return StatusCode(500, "Internal server error");
         }
     }
+    
+    [Authorize]
+    [HttpPatch("reject-participation/{participationId}")]
+    public async Task<ActionResult> RejectParticipation(int participationId)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                return Unauthorized("Kullanıcı bilgisi bulunamadı.");
+            }
+
+            int userId = int.Parse(userIdClaim.Value);
+
+            var participation = await _context.EventParticipations
+                .Include(ep => ep.Event)  
+                .FirstOrDefaultAsync(ep => ep.Id == participationId);
+
+            if (participation == null)
+            {
+                return NotFound("Katılım talebi bulunamadı.");
+            }
+
+            if (participation.Event.UserId != userId)
+            {
+                return Unauthorized("Bu etkinliğin sahibi değilsiniz.");
+            }
+
+            if (participation.Status == "Reddedildi")
+            {
+                return BadRequest("Bu katılım talebi zaten reddedilmiş.");
+            }
+
+            participation.Status = "Reddedildi"; // Reddedilmiş olarak güncelleniyor
+            await _context.SaveChangesAsync();
+
+            return Ok("Katılım isteği reddedildi.");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Hata oluştu: {e.Message}");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
 
     
     [Authorize]
@@ -179,6 +225,7 @@ public class EventParticipationController: ControllerBase
 
             int userId = int.Parse(userIdClaim.Value);
 
+            // Etkinliğin varlığını ve sahibini kontrol et
             var eventToCheck = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
             if (eventToCheck == null)
             {
@@ -190,8 +237,10 @@ public class EventParticipationController: ControllerBase
                 return Unauthorized("Bu etkinliğin sahibi değilsiniz.");
             }
 
+            // Katılımcı bilgilerini kullanıcı ile birlikte al
             var participations = await _context.EventParticipations
                 .Where(ep => ep.EventId == eventId)
+                .Include(ep => ep.User) // Kullanıcı bilgilerini dahil et
                 .ToListAsync();
 
             if (participations == null || !participations.Any())
@@ -199,7 +248,25 @@ public class EventParticipationController: ControllerBase
                 return NotFound("Katılım talebi bulunamadı.");
             }
 
-            return Ok(participations);
+            // Dönüş modelini özelleştirme (isteğe bağlı)
+            var result = participations.Select(p => new
+            {
+                p.Id,
+                p.EventId,
+                p.UserId,
+                User = p.User == null ? null : new
+                {
+                    p.User.Id,
+                    p.User.FirstName,
+                    p.User.LastName,
+                    p.User.PhoneNumber,
+                    p.User.Email
+                },
+                p.ParticipationTime,
+                p.Status
+            }).ToList();
+
+            return Ok(result);
         }
         catch (Exception e)
         {
@@ -207,6 +274,7 @@ public class EventParticipationController: ControllerBase
             return StatusCode(500, "Internal server error");
         }
     }
+
     
     
     

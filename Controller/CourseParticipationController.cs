@@ -169,6 +169,63 @@ public class CourseParticipationController: ControllerBase
     }
     
     
+    [Authorize]
+    [HttpGet("courses/{courseId}/participation-requests")]
+    public ActionResult<IEnumerable<object>> GetParticipationRequestsByCourseId(int courseId)
+    {
+        try
+        {
+            // Kullanıcı bilgilerini al
+            var userIdClaim = User?.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                return Unauthorized("Kullanıcı bilgisi bulunamadı.");
+            }
+
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return BadRequest("Geçersiz kullanıcı ID'si.");
+            }
+
+            // Kursun sahibi olup olmadığını kontrol et
+            var course = _context.Courses.FirstOrDefault(c => c.Id == courseId && c.UserId == userId);
+            if (course == null)
+            {
+                return NotFound("Kurs bulunamadı veya kullanıcı bu kursun sahibi değil.");
+            }
+
+            // Katılım isteklerini al
+            var participationRequests = _context.CourseParticipations
+                .Where(cp => cp.CourseId == courseId)
+                .Select(cp => new
+                {
+                    cp.Id,
+                    cp.User.FirstName,
+                    cp.User.LastName,
+                    cp.User.Email,
+                    cp.User.PhoneNumber,
+                    cp.Status // Onaylandı, Reddedildi, Bekliyor
+                })
+                .ToList();
+
+            if (!participationRequests.Any())
+            {
+                return NotFound("Bu kurs için herhangi bir katılım isteği bulunamadı.");
+            }
+
+            return Ok(participationRequests);
+        }
+        catch (Exception e)
+        {
+            return BadRequest($"Bir hata oluştu: {e.Message}");
+        }
+    }
+
+
+
+    
+    
+    
     
     
     

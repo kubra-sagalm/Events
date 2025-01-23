@@ -20,60 +20,67 @@ public class EventController: ControllerBase
         this._context = context;
     }
     
-    [Authorize]
-    [HttpPost]
-    public async Task<ActionResult<Event>> CreateEvent(EventDto eventDto)
+ [Authorize]
+[HttpPost]
+public async Task<ActionResult<Event>> CreateEvent(EventDto eventDto)
+{
+    try
     {
-        try
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null)
         {
-         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier); 
-          if (userIdClaim == null)
-          {
             return Unauthorized("Kullanıcı bilgisi bulunamadı.");
-         }
+        }
 
-         int userId = int.Parse(userIdClaim.Value);  
-        
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user == null)
-         {
-             return Unauthorized("Geçersiz kullanıcı.");
-         }
-          string photoPath = null;
-          
-          // Fotoğraf yükleme işlemi
-          if (eventDto.Photo != null && eventDto.Photo.Length > 0)
-          {
-              var uploadsFolder = Path.Combine("wwwroot", "event-photos");
-              if (!Directory.Exists(uploadsFolder))
-             {
+        int userId = int.Parse(userIdClaim.Value);
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+        {
+            return Unauthorized("Geçersiz kullanıcı.");
+        }
+
+        string photoPath = null;
+
+        // Fotoğraf yükleme işlemi
+        if (eventDto.Photo != null && eventDto.Photo.Length > 0)
+        {
+            var uploadsFolder = Path.Combine("wwwroot", "event-photos");
+            if (!Directory.Exists(uploadsFolder))
+            {
                 Directory.CreateDirectory(uploadsFolder);
-             }
+            }
 
-             var uniqueFileName = Guid.NewGuid().ToString() + "_" + eventDto.Photo.FileName;
-             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+            var uniqueFileName = Guid.NewGuid().ToString() + "_" + eventDto.Photo.FileName;
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-             using (var fileStream = new FileStream(filePath, FileMode.Create))
-             {
-                 await eventDto.Photo.CopyToAsync(fileStream);
-             }
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await eventDto.Photo.CopyToAsync(fileStream);
+            }
 
-             photoPath = $"/event-photos/{uniqueFileName}";
-         }
+            photoPath = $"/event-photos/{uniqueFileName}";
+        }
 
-         // Tarihleri UTC'ye dönüştür
-         var startEventTimeUtc = DateTime.SpecifyKind(eventDto.StartEventTime, DateTimeKind.Utc);
-         var endventDateTimeUtc = DateTime.SpecifyKind(eventDto.EndventDateTime, DateTimeKind.Utc);
+        // Tarihlerin null olup olmadığını kontrol edin
+        if (!eventDto.StartEventTime.HasValue || !eventDto.EndventDateTime.HasValue)
+        {
+            return BadRequest("Etkinlik başlangıç ve bitiş tarihleri zorunludur.");
+        }
 
-          var newEvent = new Event
-          {
+        // Tarihleri UTC'ye dönüştür
+        var startEventTimeUtc = DateTime.SpecifyKind(eventDto.StartEventTime.Value, DateTimeKind.Utc);
+        var endventDateTimeUtc = DateTime.SpecifyKind(eventDto.EndventDateTime.Value, DateTimeKind.Utc);
+
+        var newEvent = new Event
+        {
             Description = eventDto.Description,
             EndventDateTime = endventDateTimeUtc,
             EventName = eventDto.EventName,
             adress = eventDto.adress,
             Category = eventDto.Category,
             UserId = user.Id,
-            MaxEventParticipantNumber = eventDto.MaxEventParticipantNumber,
+            MaxEventParticipantNumber = eventDto.MaxEventParticipantNumber ?? 0, // Null ise 0 atanır
             EventParticipantNumber = 0,
             CreateEventTime = DateTime.UtcNow, // Zaten UTC
             StartEventTime = startEventTimeUtc,
@@ -82,17 +89,18 @@ public class EventController: ControllerBase
             PhotoUrl = photoPath
         };
 
-            _context.Events.Add(newEvent);
-            await _context.SaveChangesAsync(); 
+        _context.Events.Add(newEvent);
+        await _context.SaveChangesAsync();
 
-         return CreatedAtAction(nameof(CreateEvent), new { id = newEvent.Id }, newEvent);
-      }
-      catch (Exception e)
-      {
-          Console.WriteLine($"Hata oluştu: {e.Message}");
-          return StatusCode(500, "Internal server error");
-        }
+        return CreatedAtAction(nameof(CreateEvent), new { id = newEvent.Id }, newEvent);
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine($"Hata oluştu: {e.Message}");
+        return StatusCode(500, "Internal server error");
+    }
 }
+
     
    [Authorize]
 [HttpGet("/AllEvents")]
@@ -212,23 +220,35 @@ public ActionResult<List<object>> GetEvents()
     {
         try
         {
+            // Kullanıcının kimliğini al
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // Etkinlikleri al
             var events = _context.Events
-                .Where(x => x.EventStatus == "Onaylandı")  // EventStatus'u "Onaylandı" olanları al
+                .Where(e => e.EventStatus == "Onaylandı" && // "Onaylandı" durumundaki etkinlikler
+                            e.UserId != userId && // Kullanıcının sahibi olduğu etkinlikler hariç
+                            !_context.EventParticipations
+                                .Where(p => p.UserId == userId) // Kullanıcının katılım bilgilerini filtrele
+                                .Any(p => p.EventId == e.Id)) // Kullanıcının bu etkinliğe katılıp katılmadığını kontrol et
                 .ToList();
 
             if (events == null || !events.Any())
             {
-                return NotFound("Geçerli etkinlik bulunamadı."); 
+                return NotFound("Geçerli etkinlik bulunamadı.");
             }
 
-            return Ok(events); 
+            return Ok(events);
         }
         catch (Exception e)
         {
             Console.WriteLine($"Hata oluştu: {e.Message}");
-            return StatusCode(500, "Internal server error"); 
+            return StatusCode(500, "Internal server error");
         }
     }
+
+
+
+
     
 [Authorize]
 [HttpGet("MyEventParticipations")]
@@ -286,45 +306,84 @@ public ActionResult<List<object>> MyEventParticipations()
 }
 
 
-    [Authorize]
-    [HttpPatch]
-    public ActionResult<Event> UpdateEvent(int EventId, EventDto eventDto)
+[HttpPut("{id}")]
+public async Task<IActionResult> UpdateCourse(int id, [FromForm] CourseDto courseDto)
+{
+    try
     {
-        try
+        // Kursu veritabanında bul
+        var course = await _context.Courses.FindAsync(id);
+        if (course == null)
         {
-            var updateEvent = _context.Events.FirstOrDefault(x => x.Id == EventId);
-            if (updateEvent == null)
-            {
-                return NotFound("Etkinlik bulunamadı.");
-            }
-            if(updateEvent.EventStatus == "Onaylandı")
-            {
-                return BadRequest("Etkinlik onaylandığı için güncelleme yapılamaz.");
-            }
-            if(updateEvent.UserId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
-            {
-                return Unauthorized("Bu işlemi yapmaya yetkiniz yok.");
-            }
-            
-            updateEvent.Description = eventDto.Description;
-            updateEvent.EndventDateTime = eventDto.EndventDateTime;
-            updateEvent.EventName = eventDto.EventName;
-            updateEvent.adress = eventDto.adress;
-            updateEvent.Category = eventDto.Category;
-            updateEvent.MaxEventParticipantNumber = eventDto.MaxEventParticipantNumber;
-            updateEvent.StartEventTime = eventDto.StartEventTime;
-            updateEvent.City = eventDto.City;
-            updateEvent.CreateEventTime = DateTime.UtcNow;
-            _context.Update(updateEvent);
-            _context.SaveChanges();
-            return Ok(updateEvent);
+            return NotFound("Kurs bulunamadı.");
         }
-        catch (Exception e)
+
+        // Tüm alanlar için kontrol ekle
+        if (string.IsNullOrWhiteSpace(courseDto.CourseName) ||
+            string.IsNullOrWhiteSpace(courseDto.CourseCategory) ||
+            string.IsNullOrWhiteSpace(courseDto.CourseAdress) ||
+            string.IsNullOrWhiteSpace(courseDto.CourseCity) ||
+            string.IsNullOrWhiteSpace(courseDto.CourseDescription))
         {
-            Console.WriteLine($"Hata oluştu: {e.Message}");
-            return StatusCode(500, "Internal server error");
+            return BadRequest("Tüm alanlar doldurulmalıdır.");
         }
+
+        // Geçersiz tarih kontrolü
+        if (courseDto.StartCourseTime == default || courseDto.EndCourseDateTime == default)
+        {
+            return BadRequest("Başlangıç ve bitiş tarihleri geçerli olmalıdır.");
+        }
+
+        // Alanları güncelle
+        course.CourseName = courseDto.CourseName;
+        course.CourseCategory = courseDto.CourseCategory;
+        course.CourseAdress = courseDto.CourseAdress;
+        course.CourseCity = courseDto.CourseCity;
+        course.CourseDescription = courseDto.CourseDescription;
+        course.StartCourseTime = courseDto.StartCourseTime;
+        course.EndCourseDateTime = courseDto.EndCourseDateTime;
+
+        // Fotoğraf güncelleme
+        if (courseDto.Photo != null && courseDto.Photo.Length > 0)
+        {
+            var uploadsFolder = Path.Combine("wwwroot", "course-photos");
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            var uniqueFileName = Guid.NewGuid().ToString() + "_" + courseDto.Photo.FileName;
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await courseDto.Photo.CopyToAsync(fileStream);
+            }
+
+            // Eski fotoğrafı sil
+            if (!string.IsNullOrEmpty(course.PhotoUrl))
+            {
+                var oldPhotoPath = Path.Combine("wwwroot", course.PhotoUrl.TrimStart('/'));
+                if (System.IO.File.Exists(oldPhotoPath))
+                {
+                    System.IO.File.Delete(oldPhotoPath);
+                }
+            }
+
+            course.PhotoUrl = $"/course-photos/{uniqueFileName}";
+        }
+
+        // Veritabanına kaydet
+        await _context.SaveChangesAsync();
+        return Ok(course);
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Hata oluştu: {ex.Message}");
+        return StatusCode(500, "Bir hata oluştu.");
+    }
+}
+
             
     [Authorize]
     [HttpPost("cancel")]

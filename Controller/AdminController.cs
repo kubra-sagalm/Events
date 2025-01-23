@@ -82,7 +82,7 @@ public class AdminController: ControllerBase
 
     [Authorize]
     [HttpGet("PendingEvents")]
-    public ActionResult<List<Event>> PedingEvent()
+    public ActionResult<List<object>> PedingEvent()
     {
         try
         { 
@@ -92,23 +92,44 @@ public class AdminController: ControllerBase
             {
                 return Unauthorized("Bu işlemi yapmaya yetkiniz yok.");
             }
-            
-            var PedingEvents = _context.Events.Where(x => x.EventStatus == "Adminden Onay Bekliyor").ToList();
-            if (PedingEvents == null)
+            var pendingEvents = _context.Events
+                .Where(x => x.EventStatus == "Adminden Onay Bekliyor")
+                .Select(e => new 
+                {
+                    e.Id,
+                    e.EventName,
+                    e.EndventDateTime,
+                    EventOwner = _context.Users.Where(u => u.Id == e.UserId).Select(u => new 
+                    {
+                        u.FirstName,
+                        u.LastName // Ek olarak soyadı eklenebilir.
+                    }).FirstOrDefault(),
+                    e.EventStatus,
+                    User = _context.Users.Where(u => u.Id == e.UserId).Select(u => new 
+                    {
+                        u.FirstName,
+                        u.Email,
+                        u.PhoneNumber
+                    }).FirstOrDefault()
+                })
+                .ToList();
+
+
+            if (pendingEvents == null || !pendingEvents.Any())
             {
                 return NotFound("Onay bekleyen etkinlik bulunamadı.");
             }
-            return Ok(PedingEvents);
 
+            return Ok(pendingEvents);
         }
         catch (Exception e)
         {
             Console.WriteLine($"Hata oluştu: {e.Message}");
             return StatusCode(500, "Internal server error");
         }
-        
     }
-    
+
+
     //Course için işlemler 
     
     
@@ -176,32 +197,48 @@ public class AdminController: ControllerBase
 
     [Authorize]
     [HttpGet("PendingCourses")]
-    public ActionResult<List<Event>> PedingCourses()
+    public ActionResult<List<object>> PedingCourses()
     {
         try
         { 
             int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             var user = _context.Users.FirstOrDefault(x => x.Id == userId);
-            if(user.Role != "Admin")
+            if (user == null || user.Role != "Admin")
             {
                 return Unauthorized("Bu işlemi yapmaya yetkiniz yok.");
             }
-            
-            var PedingCourses = _context.Courses.Where(x => x.CourseStatus == "Adminden Onay Bekliyor").ToList();
-            if (PedingCourses == null)
-            {
-                return NotFound("Onay bekleyen etkinlik bulunamadı.");
-            }
-            return Ok(PedingCourses);
+        
+            var pendingCourses = _context.Courses
+                .Where(x => x.CourseStatus == "Adminden Onay Bekliyor")
+                .Select(course => new 
+                {
+                    course.Id,
+                    course.CourseName,
+                    course.StartCourseTime,
+                    course.EndCourseDateTime,
+                    OwnerName = _context.Users.Where(u => u.Id == course.UserId).Select(u => u.FirstName).FirstOrDefault() ?? "Bilinmiyor",
+                    OwnerInfo = new
+                    {
+                        Email = _context.Users.Where(u => u.Id == course.UserId).Select(u => u.Email).FirstOrDefault() ?? "Bilinmiyor",
+                        Phone = _context.Users.Where(u => u.Id == course.UserId).Select(u => u.PhoneNumber).FirstOrDefault() ?? "Bilinmiyor"
+                    }
+                })
+                .ToList();
 
+            if (!pendingCourses.Any())
+            {
+                return NotFound("Onay bekleyen kurs bulunamadı.");
+            }
+
+            return Ok(pendingCourses);
         }
         catch (Exception e)
         {
             Console.WriteLine($"Hata oluştu: {e.Message}");
             return StatusCode(500, "Internal server error");
         }
-        
     }
+
     
     [Authorize]
     [HttpPost("AddAdmin")]
